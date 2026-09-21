@@ -1,0 +1,187 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Arbeitszeitrechner | ArbZG-konform</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <div class="app">
+    <header class="app__header">
+      <h1>Arbeitszeitrechner</h1>
+      <p class="subtitle">
+        Berechnung nach dem deutschen Arbeitszeitgesetz (§ 3, § 4, § 5 ArbZG)
+      </p>
+    </header>
+
+    <main class="app__main">
+      <section class="card input-card" aria-labelledby="input-heading">
+        <h2 id="input-heading">Arbeitsbeginn</h2>
+        <form id="time-form" class="time-form" novalidate>
+          <div class="form-group">
+            <label for="start-time">Startzeit</label>
+            <input
+              type="time"
+              id="start-time"
+              name="start-time"
+              value="08:00"
+              required
+              aria-describedby="start-time-hint"
+            />
+            <span id="start-time-hint" class="hint">Format: HH:MM (24h)</span>
+          </div>
+          <button type="submit" class="btn-primary">
+            Zeitplan berechnen
+          </button>
+        </form>
+        <p id="error-msg" class="error-msg" role="alert" hidden></p>
+      </section>
+
+      <section class="card results-card" aria-labelledby="results-heading" hidden id="results-section">
+        <h2 id="results-heading">Ihr Tagesablauf</h2>
+        <p class="results-subtitle">
+          Pausenzeiten sind <strong>Vorschläge</strong> und können angepasst
+          werden. Nachfolgende Zeitpunkte werden automatisch neu berechnet.
+        </p>
+
+        <div id="compliance-warnings" class="compliance-warnings" hidden aria-live="polite"></div>
+
+        <ol id="timeline" class="timeline" aria-label="Chronologischer Zeitplan">
+          <li class="timeline-item" id="item-start">
+            <div class="timeline-item__content">
+              <div class="timeline-item__top">
+                <span class="timeline-item__label">Arbeitsbeginn</span>
+                <span class="timeline-item__time" id="display-start">--:--</span>
+              </div>
+            </div>
+          </li>
+
+          <li class="timeline-item editable" id="item-break1">
+            <div class="timeline-item__content">
+              <div class="timeline-item__top">
+                <span class="timeline-item__label">
+                  1. Pause <span class="tag">Vorschlag</span>
+                </span>
+                <button type="button" class="btn-reset" id="break1-reset"
+                        title="Auf gesetzlichen Vorschlag zurücksetzen"
+                        aria-label="Pause 1 zurücksetzen">↺ Zurücksetzen</button>
+              </div>
+              <div class="break-inputs">
+                <label class="break-inputs__field">
+                  Start
+                  <input type="time" id="break1-start-input" aria-label="Pause 1 Start" />
+                  <span class="day-offset" id="break1-start-offset" hidden></span>
+                </label>
+                <span class="arrow" aria-hidden="true">→</span>
+                <label class="break-inputs__field">
+                  Ende
+                  <input type="time" id="break1-end-input" aria-label="Pause 1 Ende" />
+                  <span class="day-offset" id="break1-end-offset" hidden></span>
+                </label>
+              </div>
+              <div class="requirement-note" id="break1-requirement-note"></div>
+              <div class="field-warning" id="break1-warning" hidden></div>
+            </div>
+          </li>
+
+          <li class="timeline-item" id="item-8h">
+            <div class="timeline-item__content">
+              <div class="timeline-item__top">
+                <span class="timeline-item__label">Ende Regelarbeitszeit (8 Std.)</span>
+                <span class="timeline-item__time" id="display-8h">--:--</span>
+              </div>
+              <div class="timeline-item__meta">8 Std. Nettoarbeitszeit erreicht</div>
+            </div>
+          </li>
+
+          <li class="timeline-item editable" id="item-break2">
+            <div class="timeline-item__content">
+              <div class="timeline-item__top">
+                <span class="timeline-item__label">
+                  2. Pause <span class="tag" id="break2-tag">Vorschlag</span>
+                </span>
+                <label class="break2-toggle">
+                  <input type="checkbox" id="break2-enabled-checkbox" />
+                  einplanen
+                </label>
+              </div>
+              <div class="requirement-note" id="break2-requirement-note"></div>
+              <div class="break-inputs" id="break2-inputs-wrapper">
+                <label class="break-inputs__field">
+                  Start
+                  <input type="time" id="break2-start-input" aria-label="Pause 2 Start" />
+                  <span class="day-offset" id="break2-start-offset" hidden></span>
+                </label>
+                <span class="arrow" aria-hidden="true">→</span>
+                <label class="break-inputs__field">
+                  Ende
+                  <input type="time" id="break2-end-input" aria-label="Pause 2 Ende" />
+                  <span class="day-offset" id="break2-end-offset" hidden></span>
+                </label>
+                <button type="button" class="btn-reset" id="break2-reset"
+                        title="Auf gesetzlichen Vorschlag zurücksetzen"
+                        aria-label="Pause 2 zurücksetzen">↺</button>
+              </div>
+              <div class="field-warning" id="break2-warning" hidden></div>
+            </div>
+          </li>
+
+          <li class="timeline-item flagged" id="item-10h">
+            <div class="timeline-item__content">
+              <div class="timeline-item__top">
+                <span class="timeline-item__label">Gesetzliches Höchstmaß (10 Std.)</span>
+                <span class="timeline-item__time" id="display-10h">--:--</span>
+              </div>
+              <div class="timeline-item__meta">Absolute Höchstarbeitszeit gemäß § 3 ArbZG</div>
+              <span class="badge" id="badge-10h" hidden>⚠ Beantragung für Bezahlung</span>
+            </div>
+          </li>
+
+          <li class="timeline-item lockout" id="item-rest">
+            <div class="timeline-item__content">
+              <div class="timeline-item__top">
+                <span class="timeline-item__label">Ende der Ruhezeit / Frühester Arbeitsbeginn</span>
+                <span class="timeline-item__time" id="display-rest">--:--</span>
+              </div>
+              <div class="timeline-item__meta">
+                11 Std. ununterbrochene Ruhezeit gemäß § 5 ArbZG
+                (Annahme: volle 10-Std.-Ausschöpfung am Vortag)
+              </div>
+              <span class="badge">🔒 Ruhezeit lt. § 5 ArbZG</span>
+            </div>
+          </li>
+        </ol>
+
+        <div class="legend">
+          <span class="legend-item"><span class="dot dot--normal"></span> Regulärer Zeitpunkt</span>
+          <span class="legend-item"><span class="dot dot--flag"></span> Nach 20:00 Uhr / gesetzliches Maximum</span>
+          <span class="legend-item"><span class="dot dot--lockout"></span> Ruhezeit (§ 5 ArbZG)</span>
+        </div>
+      </section>
+    </main>
+
+    <footer class="app__footer">
+      <p>
+        Hinweis: Pausenzeiten sind als Vorschläge vorausgefüllt und frei
+        editierbar. Die 1. Pause (mind. 30 Min.) muss spätestens nach 6 Std.
+        Nettoarbeitszeit erfolgen; die insgesamt erforderliche Pausenzeit
+        beträgt bei mehr als 6 bis zu 9 Std. Arbeitszeit 30 Min. und bei mehr
+        als 9 Std. 45 Min. (§ 4 ArbZG). Einzelne Pausenabschnitte müssen
+        mindestens 15 Min. dauern. Die tägliche Höchstarbeitszeit beträgt
+        grundsätzlich 8 Stunden und kann unter den Voraussetzungen des § 3
+        ArbZG auf bis zu 10 Stunden verlängert werden; anschließend gilt
+        grundsätzlich eine Ruhezeit von 11 Std. (§ 5 ArbZG).
+      </p>
+      <p>
+        Für die Richtigkeit, Vollständigkeit und Aktualität der Berechnungen
+        wird keine Gewähr übernommen. Der Rechner wurde nach bestem Wissen
+        und Gewissen auf Grundlage der genannten Vorschriften erstellt, dient
+        ausschließlich der Orientierung und ersetzt keine arbeitsrechtliche Beratung.
+      </p>
+    </footer>
+  </div>
+
+  <script src="script.js"></script>
+</body>
+</html>
